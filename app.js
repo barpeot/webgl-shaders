@@ -1,9 +1,10 @@
-
 var vertexShaderText =
     `precision mediump float;
+
     attribute vec3 vertPosition;
     varying vec3 fragColor;
     
+    uniform vec3 controlPoints[4];
     uniform mat4 mWorld;
     uniform mat4 mView;
     uniform mat4 mProj;
@@ -77,185 +78,151 @@ var initDemo = function () {
         return;
     }
 
-    const cubeVertices = []
-    const lineIndices = []
+    function computeBezierCurve(controlPoints, numSteps) {
+        var curvePoints = [];
+    
+        for (var t = 0; t <= 1; t += 1 / numSteps) {
+            var tempControlPoints = controlPoints.slice();
+    
+            while (tempControlPoints.length > 1) {
+                var newControlPoints = [];
+                for (var i = 0; i < tempControlPoints.length - 1; i++) {
+                    var x = tempControlPoints[i][0] + t * (tempControlPoints[i + 1][0] - tempControlPoints[i][0]);
+                    var y = tempControlPoints[i][1] + t * (tempControlPoints[i + 1][1] - tempControlPoints[i][1]);
+                    var z = tempControlPoints[i][2] + t * (tempControlPoints[i + 1][2] - tempControlPoints[i][2]);
+                    newControlPoints.push(glMatrix.vec3.fromValues(x, y, z));
+                }
+                tempControlPoints = newControlPoints;
+            }
+    
+            curvePoints.push(tempControlPoints[0][0]);
+            curvePoints.push(tempControlPoints[0][1]);
+            curvePoints.push(tempControlPoints[0][2]);
+        }
+    
+        return curvePoints;
+    }
 
-    //Create buffer
-    function appendVertex(VertexArray, LineArray){
-        fetch('./streamlineResult.json')
+    function startSim(){
+        fetch('./streamlineResult2.json')
         .then(response => response.text()) // Read the response as text
         .then(jsonObject => {
             const data = JSON.parse(jsonObject);
             const positionArrays = data.result;
-            var count = 0;
+
+            const Vertices = [];
+            const controlPoints = [];
 
             for (const positionArray of positionArrays) {
                 for (const position of positionArray) {
                   // Push the x, y, and z values into the 'vertices' array
-                  VertexArray.push(position[0] - 100, position[1] - 100, position[2] - 10);
-                  LineArray.push(count, count+1);
-
-                  count++;
+                  Vertices.push(position[0], position[1], position[2]);
                 }
             }
 
-            console.log(cubeVertices.length);
-            console.log(cubeVertices);
+            for (var i = 0; i < Vertices.length; i += 3) {
+                var x = Vertices[i];
+                var y = Vertices[i + 1];
+                var z = Vertices[i + 2];
+                controlPoints.push(glMatrix.vec3.fromValues(x, y, z));
+            }
+        
+            // var tValues = new Float32Array(Vertices.length);
+            // for (var i = 0; i < Vertices.length; ++i) {
+            //     tValues[i] = i / (Vertices.length-1.0);
+            // }
+        
+            console.log(Vertices);
+            console.log(controlPoints);
+            // console.log(tValues);
+            
+            var numSteps = 1000;
 
-    var cubeVertexBufferObject = gl.createBuffer();
-    gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexBufferObject);
-    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeVertices), gl.STATIC_DRAW);
+            
+            var bezierCurvePoints = computeBezierCurve(controlPoints, numSteps);
 
-    var lineIndexBufferObject = gl.createBuffer();
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBufferObject);
-    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(lineIndices), gl.STATIC_DRAW);
+            console.log(bezierCurvePoints);
 
-    var positionAttribLocation = gl.getAttribLocation(program, 'vertPosition');
-    // var colorAttribLocation = gl.getAttribLocation(program, 'vertColor');
+            var VertexBufferObject = gl.createBuffer();
+            gl.bindBuffer(gl.ARRAY_BUFFER, VertexBufferObject);
+            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bezierCurvePoints), gl.STATIC_DRAW);
 
-    gl.vertexAttribPointer(
-        positionAttribLocation, // Attribute location
-        3, // Number of elements per attribute
-        gl.FLOAT, // Type of elements
-        gl.FALSE, // Normalization
-        3 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
-        0 // Offset from the beginning of a single vertex to this attribute
-    );
+        
+            // var lineIndexBufferObject = gl.createBuffer();
+            // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBufferObject);
+            // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(lineIndices), gl.STATIC_DRAW);     
+            
+            var positionAttribLocation = gl.getAttribLocation(program, 'vertPosition');
+            // var colorAttribLocation = gl.getAttribLocation(program, 'vertColor');
+        
+            gl.vertexAttribPointer(
+                positionAttribLocation, // Attribute location
+                3, // Number of elements per attribute
+                gl.FLOAT, // Type of elements
+                gl.FALSE, // Normalization
+                3 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
+                0 // Offset from the beginning of a single vertex to this attribute
+            );
+        
+            // gl.vertexAttribPointer(
+            //     colorAttribLocation, // Attribute location
+            //     3, // Number of elements per attribute
+            //     gl.FLOAT, // Type of elements
+            //     gl.FALSE, // Normalization
+            //     6 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
+            //     3 * Float32Array.BYTES_PER_ELEMENT // Offset from the beginning of a single vertex to this attribute
+            // );
 
-    // gl.vertexAttribPointer(
-    //     colorAttribLocation, // Attribute location
-    //     3, // Number of elements per attribute
-    //     gl.FLOAT, // Type of elements
-    //     gl.FALSE, // Normalization
-    //     6 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
-    //     3 * Float32Array.BYTES_PER_ELEMENT // Offset from the beginning of a single vertex to this attribute
-    // );
+            // gl.enableVertexAttribArray(tLocation);
+            gl.enableVertexAttribArray(positionAttribLocation);
+            // gl.enableVertexAttribArray(colorAttribLocation);
+        
+            gl.useProgram(program);
 
-    gl.enableVertexAttribArray(positionAttribLocation);
-    // gl.enableVertexAttribArray(colorAttribLocation);
-
-    gl.useProgram(program);
-
-    var matWorldUniformLocation = gl.getUniformLocation(program, 'mWorld');
-    var matViewUniformLocation = gl.getUniformLocation(program, 'mView');
-    var matProjUniformLocation = gl.getUniformLocation(program, 'mProj');
-
-    var WorldMatrix = new Float32Array(16);
-    var ViewMatrix = new Float32Array(16);
-    var ProjMatrix = new Float32Array(16);
-    
-    glMatrix.mat4.identity(WorldMatrix);
-    glMatrix.mat4.lookAt(ViewMatrix, [88, 105, 11], [0, 0, 0], [0, 1, 0]);
-    glMatrix.mat4.perspective(ProjMatrix, glMatrix.glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 1000.0);
-    gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, WorldMatrix);
-    gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, ViewMatrix);
-    gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, ProjMatrix);
-
-    // Main render loop
-    var xRotation = new Float32Array(16);
-    var yRotation = new Float32Array(16);
-
-    var identity = glMatrix.mat4.create();
-    var angle = 45;
-    var loop = function () {
-        angle = performance.now() / 1000 / 6 * 2 * Math.PI;
-
-        glMatrix.mat4.rotate(xRotation, identity, angle, [0, 1, 0]);
-        glMatrix.mat4.rotate(yRotation, identity, angle / 2, [1, 0, 0]);
-        glMatrix.mat4.mul(WorldMatrix, xRotation, yRotation);
-        gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, WorldMatrix);
-
-        gl.clearColor(0.75, 0.75, 0.8, 1.0);
-        gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
-        // gl.drawElements(gl.LINES, cubeVertices.length, gl.UNSIGNED_SHORT, 0);
-        gl.drawArrays(gl.LINES, 0, cubeVertices.length);
-
-        requestAnimationFrame(loop);
-    }
-    
-    requestAnimationFrame(loop);
+            var controlPointsLocation = gl.getUniformLocation(program, 'controlPoints');
+            gl.uniform3fv(controlPointsLocation, new Float32Array(Vertices.flat()));   
+        
+            var matWorldUniformLocation = gl.getUniformLocation(program, 'mWorld');
+            var matViewUniformLocation = gl.getUniformLocation(program, 'mView');
+            var matProjUniformLocation = gl.getUniformLocation(program, 'mProj');
+        
+            var WorldMatrix = new Float32Array(16);
+            var ViewMatrix = new Float32Array(16);
+            var ProjMatrix = new Float32Array(16);
+            
+            glMatrix.mat4.identity(WorldMatrix);
+            glMatrix.mat4.lookAt(ViewMatrix, [0, 0, 1000], [1, 0, 0], [0, 1, 0]);
+            glMatrix.mat4.perspective(ProjMatrix, glMatrix.glMatrix.toRadian(45), canvas.width / canvas.height, 0.01, 10000.0);
+            gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, WorldMatrix);
+            gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, ViewMatrix);
+            gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, ProjMatrix);
+        
+            // Main render loop
+            var xRotation = new Float32Array(16);
+            var yRotation = new Float32Array(16);
+        
+            var identity = glMatrix.mat4.create();
+            var angle = 45;
+            var loop = function () {
+                angle = performance.now() / 1000 / 6 * 2 * Math.PI;
+        
+                glMatrix.mat4.rotate(xRotation, identity, angle, [0, 1, 0]);
+                glMatrix.mat4.rotate(yRotation, identity, angle / 2, [1, 0, 0]);
+                glMatrix.mat4.mul(WorldMatrix, xRotation, yRotation);
+                gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, WorldMatrix);
+        
+                gl.clearColor(0.75, 0.75, 0.8, 1.0);
+                gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
+                // gl.drawElements(gl.LINES, lineIndices.length, gl.UNSIGNED_SHORT, 0);
+                gl.drawArrays(gl.LINE_STRIP, 0, bezierCurvePoints.length);
+        
+                requestAnimationFrame(loop);
+            }
+            
+            requestAnimationFrame(loop);
         })
-        .catch(error => {
-            console.error('Error loading JSON file:', error);
-    
-        });
 
     }
 
-    appendVertex(cubeVertices, lineIndices);
-
-
-    // var cubeVertexBufferObject = gl.createBuffer();
-    // gl.bindBuffer(gl.ARRAY_BUFFER, cubeVertexBufferObject);
-    // gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(cubeVertices), gl.STATIC_DRAW);
-
-    // var lineIndexBufferObject = gl.createBuffer();
-    // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBufferObject);
-    // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(lineIndices), gl.STATIC_DRAW);
-
-    // var positionAttribLocation = gl.getAttribLocation(program, 'vertPosition');
-    // // var colorAttribLocation = gl.getAttribLocation(program, 'vertColor');
-
-    // gl.vertexAttribPointer(
-    //     positionAttribLocation, // Attribute location
-    //     3, // Number of elements per attribute
-    //     gl.FLOAT, // Type of elements
-    //     gl.FALSE, // Normalization
-    //     3 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
-    //     0 // Offset from the beginning of a single vertex to this attribute
-    // );
-
-    // // gl.vertexAttribPointer(
-    // //     colorAttribLocation, // Attribute location
-    // //     3, // Number of elements per attribute
-    // //     gl.FLOAT, // Type of elements
-    // //     gl.FALSE, // Normalization
-    // //     6 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
-    // //     3 * Float32Array.BYTES_PER_ELEMENT // Offset from the beginning of a single vertex to this attribute
-    // // );
-
-    // gl.enableVertexAttribArray(positionAttribLocation);
-    // // gl.enableVertexAttribArray(colorAttribLocation);
-
-    // gl.useProgram(program);
-
-    // var matWorldUniformLocation = gl.getUniformLocation(program, 'mWorld');
-    // var matViewUniformLocation = gl.getUniformLocation(program, 'mView');
-    // var matProjUniformLocation = gl.getUniformLocation(program, 'mProj');
-
-    // var WorldMatrix = new Float32Array(16);
-    // var ViewMatrix = new Float32Array(16);
-    // var ProjMatrix = new Float32Array(16);
-    
-    // glMatrix.mat4.identity(WorldMatrix);
-    // glMatrix.mat4.lookAt(ViewMatrix, [0, 0, -8], [0, 0, 0], [0, 1, 0]);
-    // glMatrix.mat4.perspective(ProjMatrix, glMatrix.glMatrix.toRadian(45), canvas.width / canvas.height, 0.1, 10000.0);
-
-    // gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, WorldMatrix);
-    // gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, ViewMatrix);
-    // gl.uniformMatrix4fv(matProjUniformLocation, gl.FALSE, ProjMatrix);
-
-    // // Main render loop
-    // var xRotation = new Float32Array(16);
-    // var yRotation = new Float32Array(16);
-
-    // var identity = glMatrix.mat4.create();
-    // var angle = 45;
-    // var loop = function () {
-    //     angle = performance.now() / 1000 / 6 * 2 * Math.PI;
-
-    //     glMatrix.mat4.rotate(xRotation, identity, angle, [0, 1, 0]);
-    //     glMatrix.mat4.rotate(yRotation, identity, angle / 2, [1, 0, 0]);
-    //     glMatrix.mat4.mul(WorldMatrix, xRotation, yRotation);
-    //     gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, WorldMatrix);
-
-    //     gl.clearColor(0.75, 0.75, 0.8, 1.0);
-    //     gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
-    //     gl.drawArrays(gl.LINES, 0, cubeVertices.push());
-
-    //     requestAnimationFrame(loop);
-    // }
-    
-    // requestAnimationFrame(loop);
-
+    startSim();
 };
