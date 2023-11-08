@@ -126,6 +126,8 @@ var initDemo = function () {
                 var z = Vertices[i + 2];
                 controlPoints.push(glMatrix.vec3.fromValues(x, y, z));
             }
+
+            
         
             // var tValues = new Float32Array(Vertices.length);
             // for (var i = 0; i < Vertices.length; ++i) {
@@ -136,8 +138,7 @@ var initDemo = function () {
             console.log(controlPoints);
             // console.log(tValues);
             
-            var numSteps = 1000;
-
+            var numSteps = 100;
             
             var bezierCurvePoints = computeBezierCurve(controlPoints, numSteps);
 
