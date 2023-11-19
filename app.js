@@ -4,10 +4,11 @@ var vertexShaderText =
     attribute vec3 vertPosition;
     varying vec3 fragColor;
     
-    uniform vec3 controlPoints[4];
     uniform mat4 mWorld;
     uniform mat4 mView;
     uniform mat4 mProj;
+
+
     
     void main()
     {
@@ -104,27 +105,27 @@ var initDemo = function () {
     }
 
     function startSim(){
-        fetch('./streamlineResult2.json')
+        fetch('./streamlineResult.json')
         .then(response => response.text()) // Read the response as text
         .then(jsonObject => {
             const data = JSON.parse(jsonObject);
             const positionArrays = data.result;
 
             const Vertices = [];
-            const controlPoints = [];
+            const objects = [];
 
             for (const positionArray of positionArrays) {
+                var array = [];
+                
                 for (const position of positionArray) {
-                  // Push the x, y, and z values into the 'vertices' array
-                  Vertices.push(position[0], position[1], position[2]);
+                    x = position[0];
+                    y = position[1];
+                    z = position[2];
+                    array.push(x, y, z);
                 }
-            }
-
-            for (var i = 0; i < Vertices.length; i += 3) {
-                var x = Vertices[i];
-                var y = Vertices[i + 1];
-                var z = Vertices[i + 2];
-                controlPoints.push(glMatrix.vec3.fromValues(x, y, z));
+                
+                var floatArray = new Float32Array(array);
+                objects.push(floatArray);
             }
 
             
@@ -133,29 +134,33 @@ var initDemo = function () {
             // for (var i = 0; i < Vertices.length; ++i) {
             //     tValues[i] = i / (Vertices.length-1.0);
             // }
-        
-            console.log(Vertices);
-            console.log(controlPoints);
+
+            // console.log(objects);
             // console.log(tValues);
             
-            var numSteps = 100;
+            var numSteps = 3;
             
-            var bezierCurvePoints = computeBezierCurve(controlPoints, numSteps);
+            for(const object of objects){
+                var controlPoints = [];
 
-            console.log(bezierCurvePoints);
+                for (var i = 0; i < object.length; i += 3) {
+                    var x = object[i];
+                    var y = object[i + 1];
+                    var z = object[i + 2];
+                    controlPoints.push(glMatrix.vec3.fromValues(x - 80, y - 100, z));
+                }
+
+                var bezierCurvePoints = computeBezierCurve(controlPoints, numSteps);
+                Vertices.push(bezierCurvePoints);
+            }
+
+            // console.log(Vertices);
 
             var VertexBufferObject = gl.createBuffer();
             gl.bindBuffer(gl.ARRAY_BUFFER, VertexBufferObject);
-            gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(bezierCurvePoints), gl.STATIC_DRAW);
 
-        
-            // var lineIndexBufferObject = gl.createBuffer();
-            // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBufferObject);
-            // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(lineIndices), gl.STATIC_DRAW);     
-            
             var positionAttribLocation = gl.getAttribLocation(program, 'vertPosition');
-            // var colorAttribLocation = gl.getAttribLocation(program, 'vertColor');
-        
+
             gl.vertexAttribPointer(
                 positionAttribLocation, // Attribute location
                 3, // Number of elements per attribute
@@ -164,6 +169,16 @@ var initDemo = function () {
                 3 * Float32Array.BYTES_PER_ELEMENT, // Size of an individual vertex
                 0 // Offset from the beginning of a single vertex to this attribute
             );
+
+            gl.enableVertexAttribArray(positionAttribLocation);
+
+            gl.useProgram(program);
+
+            // var lineIndexBufferObject = gl.createBuffer();
+            // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBufferObject);
+            // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(lineIndices), gl.STATIC_DRAW);     
+            
+            // var colorAttribLocation = gl.getAttribLocation(program, 'vertColor');
         
             // gl.vertexAttribPointer(
             //     colorAttribLocation, // Attribute location
@@ -175,13 +190,10 @@ var initDemo = function () {
             // );
 
             // gl.enableVertexAttribArray(tLocation);
-            gl.enableVertexAttribArray(positionAttribLocation);
             // gl.enableVertexAttribArray(colorAttribLocation);
-        
-            gl.useProgram(program);
 
-            var controlPointsLocation = gl.getUniformLocation(program, 'controlPoints');
-            gl.uniform3fv(controlPointsLocation, new Float32Array(Vertices.flat()));   
+            // var controlPointsLocation = gl.getUniformLocation(program, 'controlPoints');
+            // gl.uniform3fv(controlPointsLocation, new Float32Array(Vertices.flat()));   
         
             var matWorldUniformLocation = gl.getUniformLocation(program, 'mWorld');
             var matViewUniformLocation = gl.getUniformLocation(program, 'mView');
@@ -192,7 +204,7 @@ var initDemo = function () {
             var ProjMatrix = new Float32Array(16);
             
             glMatrix.mat4.identity(WorldMatrix);
-            glMatrix.mat4.lookAt(ViewMatrix, [0, 0, 1000], [1, 0, 0], [0, 1, 0]);
+            glMatrix.mat4.lookAt(ViewMatrix, [0, 0, 300], [1, 0, 0], [0, 1, 0]);
             glMatrix.mat4.perspective(ProjMatrix, glMatrix.glMatrix.toRadian(45), canvas.width / canvas.height, 0.01, 10000.0);
             gl.uniformMatrix4fv(matWorldUniformLocation, gl.FALSE, WorldMatrix);
             gl.uniformMatrix4fv(matViewUniformLocation, gl.FALSE, ViewMatrix);
@@ -201,9 +213,21 @@ var initDemo = function () {
             // Main render loop
             var xRotation = new Float32Array(16);
             var yRotation = new Float32Array(16);
-        
+            var array = [];
+            // new Float32Array(Vertices.length*(numSteps+1)*3);
+
             var identity = glMatrix.mat4.create();
             var angle = 45;
+
+            for (var i = 0; i < Vertices.length; i++){
+                var currentArray = Vertices[i];
+                array.push(...currentArray);
+            }
+
+            var f32array = Float32Array.from(array);
+            // console.log(f32array);
+            console.log(array);
+
             var loop = function () {
                 angle = performance.now() / 1000 / 6 * 2 * Math.PI;
         
@@ -215,8 +239,10 @@ var initDemo = function () {
                 gl.clearColor(0.75, 0.75, 0.8, 1.0);
                 gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
                 // gl.drawElements(gl.LINES, lineIndices.length, gl.UNSIGNED_SHORT, 0);
-                gl.drawArrays(gl.LINE_STRIP, 0, bezierCurvePoints.length);
-        
+                gl.bufferData(gl.ARRAY_BUFFER, f32array, gl.STATIC_DRAW);
+    
+                gl.drawArrays(gl.LINES, 0, f32array.length);
+
                 requestAnimationFrame(loop);
             }
             
