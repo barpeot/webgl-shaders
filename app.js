@@ -138,7 +138,7 @@ var initDemo = function () {
             // console.log(objects);
             // console.log(tValues);
             
-            var numSteps = 3;
+            var numSteps = 18;
             
             for(const object of objects){
                 var controlPoints = [];
@@ -147,7 +147,7 @@ var initDemo = function () {
                     var x = object[i];
                     var y = object[i + 1];
                     var z = object[i + 2];
-                    controlPoints.push(glMatrix.vec3.fromValues(x - 80, y - 100, z));
+                    controlPoints.push(glMatrix.vec3.fromValues(x, y, z));
                 }
 
                 var bezierCurvePoints = computeBezierCurve(controlPoints, numSteps);
@@ -172,11 +172,7 @@ var initDemo = function () {
 
             gl.enableVertexAttribArray(positionAttribLocation);
 
-            gl.useProgram(program);
-
-            // var lineIndexBufferObject = gl.createBuffer();
-            // gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBufferObject);
-            // gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(lineIndices), gl.STATIC_DRAW);     
+            gl.useProgram(program);   
             
             // var colorAttribLocation = gl.getAttribLocation(program, 'vertColor');
         
@@ -198,6 +194,9 @@ var initDemo = function () {
             var matWorldUniformLocation = gl.getUniformLocation(program, 'mWorld');
             var matViewUniformLocation = gl.getUniformLocation(program, 'mView');
             var matProjUniformLocation = gl.getUniformLocation(program, 'mProj');
+
+            const ext = gl.getExtension("OES_element_index_uint");
+
         
             var WorldMatrix = new Float32Array(16);
             var ViewMatrix = new Float32Array(16);
@@ -214,6 +213,7 @@ var initDemo = function () {
             var xRotation = new Float32Array(16);
             var yRotation = new Float32Array(16);
             var array = [];
+            var lineIndices = [];
             // new Float32Array(Vertices.length*(numSteps+1)*3);
 
             var identity = glMatrix.mat4.create();
@@ -222,11 +222,23 @@ var initDemo = function () {
             for (var i = 0; i < Vertices.length; i++){
                 var currentArray = Vertices[i];
                 array.push(...currentArray);
+                
+                var startIndex = i * 18;  
+                var endIndex = startIndex + 17;
+
+                for (var j = startIndex; j < endIndex; j++) {
+                    lineIndices.push(j, j + 1);
+                }
             }
+
+            var lineIndexBufferObject = gl.createBuffer();
+            gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, lineIndexBufferObject);
+            gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint32Array(lineIndices), gl.STATIC_DRAW);  
 
             var f32array = Float32Array.from(array);
             // console.log(f32array);
             console.log(array);
+            console.log(lineIndices);
 
             var loop = function () {
                 angle = performance.now() / 1000 / 6 * 2 * Math.PI;
@@ -238,10 +250,11 @@ var initDemo = function () {
         
                 gl.clearColor(0.75, 0.75, 0.8, 1.0);
                 gl.clear(gl.DEPTH_BUFFER_BIT | gl.COLOR_BUFFER_BIT);
-                // gl.drawElements(gl.LINES, lineIndices.length, gl.UNSIGNED_SHORT, 0);
                 gl.bufferData(gl.ARRAY_BUFFER, f32array, gl.STATIC_DRAW);
     
-                gl.drawArrays(gl.LINES, 0, f32array.length);
+                gl.drawElements(gl.LINES, lineIndices.length, gl.UNSIGNED_INT, 0);
+
+                // gl.drawArrays(gl.LINES, 0, f32array.length);
 
                 requestAnimationFrame(loop);
             }
